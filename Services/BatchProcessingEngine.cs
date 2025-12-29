@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -16,6 +17,7 @@ namespace WalletAuditor.Services
         private readonly int _batchSize;
         private readonly int _maxDegreeOfParallelism;
         private readonly int _timeoutMs;
+        private readonly object _lockObject = new object();
         private CancellationTokenSource _cancellationTokenSource;
 
         public event EventHandler<BatchProgressEventArgs> OnProgress;
@@ -56,6 +58,9 @@ namespace WalletAuditor.Services
             _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(externalToken);
             var token = _cancellationTokenSource.Token;
 
+            // Use local counters for thread-safe operations
+            int failedCount = 0;
+
             try
             {
                 var batches = itemsList
@@ -93,11 +98,12 @@ namespace WalletAuditor.Services
                         catch (Exception ex)
                         {
                             RaiseError(new BatchErrorEventArgs { Exception = ex, ItemsProcessed = processedCount });
-                            Interlocked.Increment(ref result.FailedItems);
+                            Interlocked.Increment(ref failedCount);
                         }
                     });
 
                 result.ProcessedItems = processedCount;
+                result.FailedItems = failedCount;
                 result.IsSuccess = result.FailedItems == 0;
             }
             catch (OperationCanceledException)
@@ -135,41 +141,43 @@ namespace WalletAuditor.Services
             BatchProcessingResult<T> result,
             CancellationToken cancellationToken)
         {
-            var batchTasks = batch.Select(item =>
-                ProcessItemWithTimeoutAsync(item, processItemAsync, result, cancellationToken)
-            ).ToList();
+            // Use local counters for thread-safe batch processing
+            int successCount = 0;
+            int timeoutCount = 0;
+            int failedCount = 0;
+
+            var batchTasks = batch.Select(async item =>
+            {
+                using (var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+                {
+                    timeoutCts.CancelAfter(_timeoutMs);
+
+                    try
+                    {
+                        await processItemAsync(item, timeoutCts.Token);
+                        Interlocked.Increment(ref successCount);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        Interlocked.Increment(ref timeoutCount);
+                        throw;
+                    }
+                    catch (Exception)
+                    {
+                        Interlocked.Increment(ref failedCount);
+                        throw;
+                    }
+                }
+            }).ToList();
 
             await Task.WhenAll(batchTasks);
-        }
 
-        /// <summary>
-        /// Processes individual item with timeout
-        /// </summary>
-        private async Task ProcessItemWithTimeoutAsync(
-            T item,
-            Func<T, CancellationToken, Task> processItemAsync,
-            BatchProcessingResult<T> result,
-            CancellationToken cancellationToken)
-        {
-            using (var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+            // Update result with thread-safe aggregated counts using lock
+            lock (_lockObject)
             {
-                timeoutCts.CancelAfter(_timeoutMs);
-
-                try
-                {
-                    await processItemAsync(item, timeoutCts.Token);
-                    Interlocked.Increment(ref result.SuccessfulItems);
-                }
-                catch (OperationCanceledException)
-                {
-                    Interlocked.Increment(ref result.TimeoutItems);
-                    throw;
-                }
-                catch (Exception)
-                {
-                    Interlocked.Increment(ref result.FailedItems);
-                    throw;
-                }
+                result.SuccessfulItems += successCount;
+                result.TimeoutItems += timeoutCount;
+                result.FailedItems += failedCount;
             }
         }
 

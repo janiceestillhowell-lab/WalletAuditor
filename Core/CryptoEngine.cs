@@ -54,10 +54,10 @@ namespace WalletAuditor.Core
             int checksumBits = entropyBytes.Length / 4;
             
             // Combine entropy and checksum
-            BitArray bits = new BitArray(entropyBytes);
-            BitArray checksumBits_arr = new BitArray(checksum);
+            CustomBitArray bits = new CustomBitArray(entropyBytes);
+            CustomBitArray checksumBits_arr = new CustomBitArray(checksum);
             
-            List<bool> totalBits = bits.Cast<bool>().ToList();
+            List<bool> totalBits = bits.Cast().ToList();
             for (int i = 0; i < checksumBits; i++)
             {
                 totalBits.Add(checksumBits_arr[i]);
@@ -115,7 +115,7 @@ namespace WalletAuditor.Core
             int checksumBits = words.Length / 3;
 
             // Reconstruct entropy from words
-            BitArray bits = new BitArray(words.Length * 11);
+            CustomBitArray bits = new CustomBitArray(words.Length * 11);
             for (int i = 0; i < words.Length; i++)
             {
                 int index = Array.IndexOf(BIP39_WORDLIST, words[i]);
@@ -484,18 +484,18 @@ namespace WalletAuditor.Core
     /// <summary>
     /// Helper class for bit array operations
     /// </summary>
-    internal class BitArray
+    internal class CustomBitArray
     {
         private byte[] data;
         public int Length { get; private set; }
 
-        public BitArray(byte[] bytes)
+        public CustomBitArray(byte[] bytes)
         {
             data = (byte[])bytes.Clone();
             Length = bytes.Length * 8;
         }
 
-        public BitArray(int length)
+        public CustomBitArray(int length)
         {
             data = new byte[(length + 7) / 8];
             Length = length;
@@ -513,7 +513,7 @@ namespace WalletAuditor.Core
             }
         }
 
-        public IEnumerable<bool> Cast<T>() where T : bool
+        public IEnumerable<bool> Cast()
         {
             for (int i = 0; i < Length; i++)
                 yield return this[i];
