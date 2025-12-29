@@ -13,39 +13,36 @@ namespace WalletAuditor.Services
         {
             var result = new AuditResult();
 
-            await Task.Run(() =>
+            // Perform basic wallet audit
+            if (wallet == null)
             {
-                // Perform basic wallet audit
-                if (wallet == null)
-                {
-                    result.IsSuccessful = false;
-                    result.Message = "Wallet is null";
-                    return;
-                }
+                result.IsSuccessful = false;
+                result.Message = "Wallet is null";
+                return result;
+            }
 
-                if (string.IsNullOrWhiteSpace(wallet.Address))
-                {
-                    result.IsSuccessful = false;
-                    result.Message = "Wallet address is empty";
-                    result.Findings.Add("Missing wallet address");
-                    return;
-                }
+            if (string.IsNullOrWhiteSpace(wallet.Address))
+            {
+                result.IsSuccessful = false;
+                result.Message = "Wallet address is empty";
+                result.Findings.Add("Missing wallet address");
+                return result;
+            }
 
-                if (wallet.Balance < 0)
-                {
-                    result.IsSuccessful = false;
-                    result.Message = "Invalid balance";
-                    result.Findings.Add("Wallet balance cannot be negative");
-                    return;
-                }
+            if (wallet.Balance < 0)
+            {
+                result.IsSuccessful = false;
+                result.Message = "Invalid balance";
+                result.Findings.Add("Wallet balance cannot be negative");
+                return result;
+            }
 
-                result.IsSuccessful = true;
-                result.Message = $"Wallet '{wallet.Name}' audit completed successfully";
-                result.Findings.Add($"Wallet address: {wallet.Address}");
-                result.Findings.Add($"Balance: {wallet.Balance}");
-            });
+            result.IsSuccessful = true;
+            result.Message = $"Wallet '{wallet.Name}' audit completed successfully";
+            result.Findings.Add($"Wallet address: {wallet.Address}");
+            result.Findings.Add($"Balance: {wallet.Balance}");
 
-            return result;
+            return await Task.FromResult(result);
         }
     }
 }
