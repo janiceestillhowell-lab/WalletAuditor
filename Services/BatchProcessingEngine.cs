@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -139,15 +140,45 @@ namespace WalletAuditor.Services
             BatchProcessingResult<T> result,
             CancellationToken cancellationToken)
         {
-            var batchTasks = batch.Select(item =>
-                ProcessItemWithTimeoutAsync(item, processItemAsync, result, cancellationToken)
-            ).ToList();
+            // Use local counters for thread-safe batch processing
+            int successCount = 0;
+            int timeoutCount = 0;
+            int failedCount = 0;
+
+            var batchTasks = batch.Select(async item =>
+            {
+                using (var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+                {
+                    timeoutCts.CancelAfter(_timeoutMs);
+
+                    try
+                    {
+                        await processItemAsync(item, timeoutCts.Token);
+                        Interlocked.Increment(ref successCount);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        Interlocked.Increment(ref timeoutCount);
+                        throw;
+                    }
+                    catch (Exception)
+                    {
+                        Interlocked.Increment(ref failedCount);
+                        throw;
+                    }
+                }
+            }).ToList();
 
             await Task.WhenAll(batchTasks);
+
+            // Update result with thread-safe aggregated counts
+            result.SuccessfulItems += successCount;
+            result.TimeoutItems += timeoutCount;
+            result.FailedItems += failedCount;
         }
 
         /// <summary>
-        /// Processes individual item with timeout
+        /// Processes individual item with timeout (deprecated - logic moved to ProcessBatchAsync)
         /// </summary>
         private async Task ProcessItemWithTimeoutAsync(
             T item,

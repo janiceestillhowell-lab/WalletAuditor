@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using WalletAuditor.Services;
 
 namespace WalletAuditor
@@ -9,7 +10,7 @@ namespace WalletAuditor
     /// </summary>
     class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             Console.WriteLine("===========================================");
             Console.WriteLine("    Wallet Auditor - Console Edition");
@@ -54,7 +55,7 @@ namespace WalletAuditor
                         Transactions = new System.Collections.Generic.List<Transaction>()
                     };
 
-                    var auditResult = auditService.PerformWalletAuditAsync(wallet.Name, walletData).Result;
+                    var auditResult = await auditService.PerformWalletAuditAsync(wallet.Name, walletData);
                     
                     Console.WriteLine($"Audit for {wallet.Name}:");
                     Console.WriteLine($"  Status: {auditResult.Status}");
