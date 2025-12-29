@@ -373,7 +373,9 @@ namespace WalletAuditor.Services
             if (!chainStats.TryGetProperty("funded_txo_sum", out var fundedTxoSum))
                 return null;
 
-            var balance = fundedTxoSum.GetInt64();
+            if (!fundedTxoSum.TryGetInt64(out var balance))
+                return null;
+
             var balanceBTC = balance / 100_000_000m;
 
             return new BalanceResult
@@ -462,7 +464,9 @@ namespace WalletAuditor.Services
             if (!chainStats.TryGetProperty("funded_txo_sum", out var fundedTxoSum))
                 return null;
 
-            var balance = fundedTxoSum.GetInt64();
+            if (!fundedTxoSum.TryGetInt64(out var balance))
+                return null;
+
             var balanceLTC = balance / 100_000_000m;
 
             return new BalanceResult
@@ -494,7 +498,8 @@ namespace WalletAuditor.Services
             if (!root.TryGetProperty("balance", out var balanceElement))
                 return null;
 
-            var balance = balanceElement.GetDecimal();
+            if (!balanceElement.TryGetDecimal(out var balance))
+                return null;
 
             return new BalanceResult
             {
@@ -531,7 +536,9 @@ namespace WalletAuditor.Services
             if (!dataElement[0].TryGetProperty("balance", out var balanceElement))
                 return null;
 
-            var balance = balanceElement.GetInt64();
+            if (!balanceElement.TryGetInt64(out var balance))
+                return null;
+
             var balanceTRX = balance / 1_000_000m;
 
             return new BalanceResult
@@ -637,7 +644,9 @@ namespace WalletAuditor.Services
             if (!resultElement.TryGetProperty("value", out var valueElement))
                 return null;
 
-            var balance = valueElement.GetInt64();
+            if (!valueElement.TryGetInt64(out var balance))
+                return null;
+
             var balanceSOL = balance / 1_000_000_000m;
 
             return new BalanceResult
