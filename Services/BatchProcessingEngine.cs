@@ -56,6 +56,9 @@ namespace WalletAuditor.Services
             _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(externalToken);
             var token = _cancellationTokenSource.Token;
 
+            // Use local counters for thread-safe operations
+            int failedCount = 0;
+
             try
             {
                 var batches = itemsList
@@ -93,11 +96,12 @@ namespace WalletAuditor.Services
                         catch (Exception ex)
                         {
                             RaiseError(new BatchErrorEventArgs { Exception = ex, ItemsProcessed = processedCount });
-                            Interlocked.Increment(ref result.FailedItems);
+                            Interlocked.Increment(ref failedCount);
                         }
                     });
 
                 result.ProcessedItems = processedCount;
+                result.FailedItems = failedCount;
                 result.IsSuccess = result.FailedItems == 0;
             }
             catch (OperationCanceledException)
@@ -158,16 +162,16 @@ namespace WalletAuditor.Services
                 try
                 {
                     await processItemAsync(item, timeoutCts.Token);
-                    Interlocked.Increment(ref result.SuccessfulItems);
+                    result.SuccessfulItems++;
                 }
                 catch (OperationCanceledException)
                 {
-                    Interlocked.Increment(ref result.TimeoutItems);
+                    result.TimeoutItems++;
                     throw;
                 }
                 catch (Exception)
                 {
-                    Interlocked.Increment(ref result.FailedItems);
+                    result.FailedItems++;
                     throw;
                 }
             }
