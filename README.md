@@ -1,53 +1,83 @@
 # WalletAuditor
 
-A comprehensive wallet auditing solution designed to provide detailed analysis, monitoring, and reporting of blockchain wallet transactions and balances.
+A clean, simple C# wallet auditing application built with .NET 6.0 Windows Forms.
 
-## Table of Contents
+## Overview
 
-- [Features](#features)
-- [Quick Start Guide](#quick-start-guide)
-- [API Reference](#api-reference)
-- [Configuration](#configuration)
-- [Performance Optimization](#performance-optimization)
-- [Troubleshooting](#troubleshooting)
-- [Security Considerations](#security-considerations)
-- [Data Export Formats](#data-export-formats)
-- [Development Information](#development-information)
-- [License](#license)
-- [Support](#support)
-
----
+WalletAuditor is a straightforward desktop application for managing and auditing cryptocurrency wallets. Built from the ground up with simplicity and maintainability in mind.
 
 ## Features
 
-WalletAuditor offers a robust set of features for comprehensive wallet analysis:
+- **Simple Wallet Management**: View and manage cryptocurrency wallets
+- **Wallet Auditing**: Perform basic audits on wallet data
+- **Clean Architecture**: Organized with Core models and Services
+- **Async-Ready**: Audit operations support asynchronous execution
 
-### Core Features
-- **Multi-Chain Support**: Monitor wallets across multiple blockchain networks
-- **Real-Time Transaction Monitoring**: Track transactions as they occur on the blockchain
-- **Balance Analysis**: Get accurate, up-to-date wallet balance information
-- **Transaction History**: Complete audit trails with detailed transaction metadata
-- **Address Labeling**: Tag and organize addresses for better tracking
-- **Portfolio Analytics**: Comprehensive portfolio overview and analysis
+## Project Structure
 
-### Advanced Features
-- **Risk Assessment**: Identify suspicious activity patterns and potential security risks
-- **Gas Fee Optimization**: Analyze and optimize transaction costs
-- **Compliance Reporting**: Generate audit-ready compliance reports
-- **Custom Alerts**: Set up notifications for specific transaction types or balance thresholds
-- **Batch Operations**: Process multiple wallets simultaneously
-- **Historical Data**: Access to complete transaction history with timestamps
-- **Export Functionality**: Export data in multiple formats for external analysis
+```
+WalletAuditor/
+├── Core/
+│   ├── Wallet.cs          # Simple wallet data model
+│   └── AuditResult.cs     # Audit result model
+├── Services/
+│   ├── WalletService.cs   # Wallet operations
+│   └── AuditService.cs    # Audit operations
+├── Program.cs             # Application entry point
+└── WalletAuditor.csproj   # Clean .NET 6.0 project file
+```
 
----
+## Requirements
 
-## Quick Start Guide
+- .NET 6.0 SDK or later
+- Windows OS (for Windows Forms)
 
-### Installation
+## Building and Running
 
-#### Prerequisites
-- Node.js >= 14.0.0
-- npm >= 6.0.0 or yarn >= 1.22.0
+### Build the project:
+```bash
+dotnet build
+```
+
+### Run the application:
+```bash
+dotnet run
+```
+
+## Usage
+
+1. Launch the application
+2. The main window displays a list of sample wallets
+3. Select a wallet from the list
+4. Click "Audit" to perform a basic audit
+5. Click "Refresh" to reload the wallet list
+
+## Design Principles
+
+- ✅ Clean, simple code structure
+- ✅ No auto-generated Designer files
+- ✅ No external JSON dependencies (uses System.Text.Json if needed)
+- ✅ Minimal dependencies
+- ✅ Command-line buildable and runnable
+- ✅ Ready for real development
+
+## Development
+
+This project is designed to be:
+- Easy to understand
+- Easy to extend
+- Easy to maintain
+- Built without Visual Studio Designer
+- Compiled and run from command line
+
+## License
+
+MIT License
+
+## Support
+
+For issues or questions, please open an issue in the repository.
+
 - API keys for supported blockchain networks (Infura, Alchemy, or similar)
 
 #### Install via npm
