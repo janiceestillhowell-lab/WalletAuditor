@@ -1,7 +1,8 @@
 using System;
-using System.Windows.Forms;
+using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
-using WalletAuditor.Core;
+using System.Windows.Forms;
 using WalletAuditor.Services;
 
 namespace WalletAuditor.UI
@@ -10,11 +11,19 @@ namespace WalletAuditor.UI
     {
         private WalletService _walletService;
         private AuditService _auditService;
+        private ListView walletListView;
+        private Button auditButton;
+        private Button refreshButton;
 
         public MainForm()
         {
             InitializeComponent();
+            this.Text = "Wallet Auditor";
+            this.Size = new Size(900, 600);
+            this.StartPosition = FormStartPosition.CenterScreen;
             InitializeServices();
+            BuildUI();
+            LoadWalletData();
         }
 
         private void InitializeServices()
@@ -23,85 +32,138 @@ namespace WalletAuditor.UI
             _auditService = new AuditService();
         }
 
-        private void MainForm_Load(object sender, EventArgs e)
+        private void BuildUI()
         {
-            LoadWalletData();
+            var mainPanel = new Panel { Dock = DockStyle.Fill };
+
+            var toolbarPanel = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 50,
+                BackColor = SystemColors.ControlLight
+            };
+
+            refreshButton = new Button
+            {
+                Text = "Refresh",
+                Location = new Point(10, 10),
+                Size = new Size(100, 30),
+                BackColor = Color.FromArgb(0, 122, 204),
+                ForeColor = Color.White
+            };
+            refreshButton.Click += (s, e) => LoadWalletData();
+            toolbarPanel.Controls.Add(refreshButton);
+
+            auditButton = new Button
+            {
+                Text = "Audit Selected",
+                Location = new Point(120, 10),
+                Size = new Size(100, 30),
+                BackColor = Color.FromArgb(76, 175, 80),
+                ForeColor = Color.White
+            };
+            auditButton.Click += AuditButton_Click;
+            toolbarPanel.Controls.Add(auditButton);
+
+            mainPanel.Controls.Add(toolbarPanel);
+
+            walletListView = new ListView
+            {
+                Dock = DockStyle.Fill,
+                View = View.Details,
+                FullRowSelect = true,
+                GridLines = true,
+                Location = new Point(0, 50)
+            };
+            walletListView.Columns.Add("Name", 150);
+            walletListView.Columns.Add("Address", 250);
+            walletListView.Columns.Add("Currency", 100);
+            walletListView.Columns.Add("Balance", 100);
+
+            mainPanel.Controls.Add(walletListView);
+
+            var statusBar = new StatusStrip();
+            var statusLabel = new ToolStripStatusLabel("Ready");
+            statusBar.Items.Add(statusLabel);
+            mainPanel.Controls.Add(statusBar);
+
+            this.Controls.Add(mainPanel);
         }
 
         private void LoadWalletData()
         {
             try
             {
-                var wallets = _walletService.GetAllWallets().ToList();
-                RefreshWalletList(wallets);
+                walletListView.Items.Clear();
+                var wallets = _walletService.GetAllWallets();
+                foreach (var wallet in wallets)
+                {
+                    var item = new ListViewItem(wallet.Name);
+                    item.SubItems.Add(wallet.Address);
+                    item.SubItems.Add(wallet.Currency);
+                    item.SubItems.Add(wallet.Balance.ToString("F8"));
+                    item.Tag = wallet;
+                    walletListView.Items.Add(item);
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error loading wallet data: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Error loading wallets: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        private void RefreshWalletList(System.Collections.Generic.List<WalletModel> wallets)
+        private async void AuditButton_Click(object sender, EventArgs e)
         {
-            // Clear existing items
-            walletListView.Items.Clear();
-
-            // Bind wallet data to list view
-            foreach (var wallet in wallets)
+            if (walletListView.SelectedItems.Count == 0)
             {
-                var item = new ListViewItem(wallet.Name);
-                item.SubItems.Add(wallet.Balance.ToString("C"));
-                item.SubItems.Add(wallet.LastUpdated.ToString("g"));
-                walletListView.Items.Add(item);
+                MessageBox.Show("Please select a wallet to audit.", "Selection Required", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
             }
-        }
 
-        private void auditButton_Click(object sender, EventArgs e)
-        {
             try
             {
-                var selectedItems = walletListView.SelectedItems;
-                if (selectedItems.Count == 0)
+                auditButton.Enabled = false;
+                var selectedWallet = walletListView.SelectedItems[0].Tag as Wallet;
+                if (selectedWallet != null)
                 {
-                    MessageBox.Show("Please select a wallet to audit.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return;
+                    var walletData = new WalletData
+                    {
+                        WalletId = selectedWallet.Name,
+                        Balance = selectedWallet.Balance,
+                        CreatedDate = selectedWallet.CreatedDate,
+                        Transactions = new List<Transaction>()
+                    };
+
+                    var auditResult = await _auditService.PerformWalletAuditAsync(selectedWallet.Name, walletData);
+                    var message = $"Audit Result: {auditResult.Status}\n\n";
+                    message += $"Valid: {auditResult.IsValid}\n";
+                    message += $"Errors: {auditResult.Errors.Count}\n";
+                    message += $"Warnings: {auditResult.Warnings.Count}";
+                    MessageBox.Show(message, "Audit Result", MessageBoxButtons.OK, auditResult.IsValid ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
                 }
-
-                var selectedWallet = selectedItems[0].Text;
-                var auditResult = _auditService.PerformAudit(selectedWallet);
-
-                DisplayAuditResult(auditResult);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error performing audit: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show($"Error during audit: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-        }
-
-        private void DisplayAuditResult(AuditResult auditResult)
-        {
-            if (auditResult.IsValid)
+            finally
             {
-                MessageBox.Show("Audit passed. No discrepancies found.", "Audit Result", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                auditButton.Enabled = true;
             }
-            else
-            {
-                var discrepancies = string.Join(Environment.NewLine, auditResult.Discrepancies.Take(10));
-                MessageBox.Show($"Audit failed. Discrepancies found:{Environment.NewLine}{discrepancies}", "Audit Result", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            }
-        }
-
-        private void exitButton_Click(object sender, EventArgs e)
-        {
-            Application.Exit();
         }
 
         [STAThread]
-        private static void Main()
+        static void Main()
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new MainForm());
+        }
+
+        private new void InitializeComponent()
+        {
+            this.SuspendLayout();
+            this.ResumeLayout(false);
         }
     }
 }
