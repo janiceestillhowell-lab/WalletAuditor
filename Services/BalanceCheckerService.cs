@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Newtonsoft.Json.Linq;
+using System.Text.Json;
 
 namespace WalletAuditor.Services
 {
@@ -364,9 +364,18 @@ namespace WalletAuditor.Services
                 return null;
 
             var content = await response.Content.ReadAsStringAsync();
-            var json = JObject.Parse(content);
+            using var json = JsonDocument.Parse(content);
+            var root = json.RootElement;
 
-            var balance = json["chain_stats"]?["funded_txo_sum"]?.Value<long>() ?? 0;
+            if (!root.TryGetProperty("chain_stats", out var chainStats))
+                return null;
+
+            if (!chainStats.TryGetProperty("funded_txo_sum", out var fundedTxoSum))
+                return null;
+
+            if (!fundedTxoSum.TryGetInt64(out var balance))
+                return null;
+
             var balanceBTC = balance / 100_000_000m;
 
             return new BalanceResult
@@ -405,12 +414,16 @@ namespace WalletAuditor.Services
                 return null;
 
             var responseContent = await response.Content.ReadAsStringAsync();
-            var json = JObject.Parse(responseContent);
+            using var json = JsonDocument.Parse(responseContent);
+            var root = json.RootElement;
 
-            if (json["error"] != null)
+            if (root.TryGetProperty("error", out _))
                 return null;
 
-            var balanceHex = json["result"]?.Value<string>();
+            if (!root.TryGetProperty("result", out var resultElement))
+                return null;
+
+            var balanceHex = resultElement.GetString();
             if (string.IsNullOrEmpty(balanceHex))
                 return null;
 
@@ -442,9 +455,18 @@ namespace WalletAuditor.Services
                 return null;
 
             var responseContent = await response.Content.ReadAsStringAsync();
-            var json = JObject.Parse(responseContent);
+            using var json = JsonDocument.Parse(responseContent);
+            var root = json.RootElement;
 
-            var balance = json["chain_stats"]?["funded_txo_sum"]?.Value<long>() ?? 0;
+            if (!root.TryGetProperty("chain_stats", out var chainStats))
+                return null;
+
+            if (!chainStats.TryGetProperty("funded_txo_sum", out var fundedTxoSum))
+                return null;
+
+            if (!fundedTxoSum.TryGetInt64(out var balance))
+                return null;
+
             var balanceLTC = balance / 100_000_000m;
 
             return new BalanceResult
@@ -470,9 +492,14 @@ namespace WalletAuditor.Services
                 return null;
 
             var responseContent = await response.Content.ReadAsStringAsync();
-            var json = JObject.Parse(responseContent);
+            using var json = JsonDocument.Parse(responseContent);
+            var root = json.RootElement;
 
-            var balance = json["balance"]?.Value<decimal>() ?? 0;
+            if (!root.TryGetProperty("balance", out var balanceElement))
+                return null;
+
+            if (!balanceElement.TryGetDecimal(out var balance))
+                return null;
 
             return new BalanceResult
             {
@@ -497,9 +524,21 @@ namespace WalletAuditor.Services
                 return null;
 
             var responseContent = await response.Content.ReadAsStringAsync();
-            var json = JObject.Parse(responseContent);
+            using var json = JsonDocument.Parse(responseContent);
+            var root = json.RootElement;
 
-            var balance = json["data"]?[0]?["balance"]?.Value<long>() ?? 0;
+            if (!root.TryGetProperty("data", out var dataElement))
+                return null;
+
+            if (dataElement.GetArrayLength() == 0)
+                return null;
+
+            if (!dataElement[0].TryGetProperty("balance", out var balanceElement))
+                return null;
+
+            if (!balanceElement.TryGetInt64(out var balance))
+                return null;
+
             var balanceTRX = balance / 1_000_000m;
 
             return new BalanceResult
@@ -539,9 +578,19 @@ namespace WalletAuditor.Services
                 return null;
 
             var responseContent = await response.Content.ReadAsStringAsync();
-            var json = JObject.Parse(responseContent);
+            using var json = JsonDocument.Parse(responseContent);
+            var root = json.RootElement;
 
-            var balance = json["result"]?["account_data"]?["Balance"]?.Value<string>();
+            if (!root.TryGetProperty("result", out var resultElement))
+                return null;
+
+            if (!resultElement.TryGetProperty("account_data", out var accountData))
+                return null;
+
+            if (!accountData.TryGetProperty("Balance", out var balanceElement))
+                return null;
+
+            var balance = balanceElement.GetString();
             if (string.IsNullOrEmpty(balance) || !long.TryParse(balance, out var balanceLong))
                 return null;
 
@@ -583,12 +632,21 @@ namespace WalletAuditor.Services
                 return null;
 
             var responseContent = await response.Content.ReadAsStringAsync();
-            var json = JObject.Parse(responseContent);
+            using var json = JsonDocument.Parse(responseContent);
+            var root = json.RootElement;
 
-            if (json["error"] != null)
+            if (root.TryGetProperty("error", out _))
                 return null;
 
-            var balance = json["result"]?["value"]?.Value<long>() ?? 0;
+            if (!root.TryGetProperty("result", out var resultElement))
+                return null;
+
+            if (!resultElement.TryGetProperty("value", out var valueElement))
+                return null;
+
+            if (!valueElement.TryGetInt64(out var balance))
+                return null;
+
             var balanceSOL = balance / 1_000_000_000m;
 
             return new BalanceResult
