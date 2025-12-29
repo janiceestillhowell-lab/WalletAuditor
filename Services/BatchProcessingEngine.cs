@@ -17,6 +17,7 @@ namespace WalletAuditor.Services
         private readonly int _batchSize;
         private readonly int _maxDegreeOfParallelism;
         private readonly int _timeoutMs;
+        private readonly object _lockObject = new object();
         private CancellationTokenSource _cancellationTokenSource;
 
         public event EventHandler<BatchProgressEventArgs> OnProgress;
@@ -171,40 +172,12 @@ namespace WalletAuditor.Services
 
             await Task.WhenAll(batchTasks);
 
-            // Update result with thread-safe aggregated counts
-            result.SuccessfulItems += successCount;
-            result.TimeoutItems += timeoutCount;
-            result.FailedItems += failedCount;
-        }
-
-        /// <summary>
-        /// Processes individual item with timeout (deprecated - logic moved to ProcessBatchAsync)
-        /// </summary>
-        private async Task ProcessItemWithTimeoutAsync(
-            T item,
-            Func<T, CancellationToken, Task> processItemAsync,
-            BatchProcessingResult<T> result,
-            CancellationToken cancellationToken)
-        {
-            using (var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+            // Update result with thread-safe aggregated counts using lock
+            lock (_lockObject)
             {
-                timeoutCts.CancelAfter(_timeoutMs);
-
-                try
-                {
-                    await processItemAsync(item, timeoutCts.Token);
-                    result.SuccessfulItems++;
-                }
-                catch (OperationCanceledException)
-                {
-                    result.TimeoutItems++;
-                    throw;
-                }
-                catch (Exception)
-                {
-                    result.FailedItems++;
-                    throw;
-                }
+                result.SuccessfulItems += successCount;
+                result.TimeoutItems += timeoutCount;
+                result.FailedItems += failedCount;
             }
         }
 
