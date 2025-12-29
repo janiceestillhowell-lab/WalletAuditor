@@ -1,19 +1,14 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net6.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Core directory files -->
-    <Compile Include="Core/**/*.cs" />
-    <!-- Services directory files -->
-    <Compile Include="Services/**/*.cs" />
-    <!-- UI directory files -->
-    <Compile Include="UI/**/*.cs" />
+    <PackageReference Include="CsvHelper" Version="30.0.0" />
   </ItemGroup>
 
 </Project>
